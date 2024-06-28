@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-
+const fs = require("fs");
 const { spawn } = require("child_process");
 const path = require("path");
 
@@ -7,44 +7,23 @@ const path = require("path");
 
 const command = path.join(__dirname, "/bin/loggedfs");
 
-const args = ["-f", "-p", "/Users/paul/mount/project5"];
+const args = ["-f", "-p", "/Users/paul/mount/project6"];
 
 const child = spawn(command, args);
 
 const activeScriptsByPid = {};
 
-const LOG_REGEX =
-  /\w+ \[default\] (?<accessType>\w+) (?<filePath>\/[^\s]+) \{[A-Z]+\} \[ pid = (?<pid>\d+)/;
+const logFilePath = path.join(__dirname, "log.txt");
 
-console.log("watching scripts");
+if (!fs.existsSync(logFilePath)) {
+  fs.writeFileSync(logFilePath, "", { flag: "wx" });
+}
 
 child.stdout.on("data", (data) => {
-  const match = data.toString().match(LOG_REGEX);
-
-  if (match) {
-    const { pid, accessType, filePath } = match.groups;
-
-    const fileName = filePath.split("/").slice(-1)[0];
-
-    if (fileName.startsWith(".")) {
-      return;
-    }
-
-    if (accessType === "getattr" || filePath.includes(".git")) {
-      return;
-    }
-
-    if (!activeScriptsByPid[pid] && filePath.endsWith(".py")) {
-      activeScriptsByPid[pid] = filePath;
-    }
-
-    if (
-      activeScriptsByPid[pid] &&
-      (accessType === "open" || accessType === "release") &&
-      activeScriptsByPid[pid] !== filePath
-    ) {
-      console.log(activeScriptsByPid[pid], accessType, filePath);
-    }
+  try {
+    fs.appendFileSync(logFilePath, data);
+  } catch (err) {
+    console.error(`Error appending to file: ${err.message}`);
   }
 });
 
